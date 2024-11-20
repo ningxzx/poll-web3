@@ -1,53 +1,230 @@
 'use client';
 
-import { useContractRead, useContractWrite, usePrepareContractWrite } from 'wagmi';
+import { useContractRead, useWalletClient, useNetwork, usePublicClient } from 'wagmi';
 import { useState, useEffect } from 'react';
+import { publicClient } from '../config/wagmi';
+import { VOTING_SYSTEM_ADDRESS, VOTING_SYSTEM_ABI } from '../config/contracts';
+import { hardhat } from 'wagmi/chains';
 
-// Import your contract ABI and address
-const CONTRACT_ADDRESS = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
-const CONTRACT_ABI = [
-  "function createProposal(string memory _title, string memory _description) public",
-  "function vote(uint256 _proposalId, bool _support) public",
-  "function getProposals() public view returns (tuple(uint256 id, string title, string description, uint256 yesVotes, uint256 noVotes, bool executed, address proposer)[] memory)"
-];
+interface Option {
+  text: string;
+  votes: bigint;
+}
+
+interface Proposal {
+  id: number;
+  creator: string;
+  title: string;
+  description: string;
+  isCustomVoting: boolean;
+  options: Option[];
+}
 
 export function useVotingSystem() {
-  const [proposals, setProposals] = useState([]);
+  const { data: walletClient } = useWalletClient();
+  const { chain } = useNetwork();
+  const wagmiPublicClient = usePublicClient();
+  const [proposals, setProposals] = useState<Proposal[]>([]);
 
-  // Read proposals
-  const { data: proposalsData } = useContractRead({
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    abi: CONTRACT_ABI,
-    functionName: 'getProposals',
-  });
-
-  // Create proposal
-  const { config: createProposalConfig } = usePrepareContractWrite({
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    abi: CONTRACT_ABI,
-    functionName: 'createProposal',
-  });
-
-  const { write: createProposal } = useContractWrite(createProposalConfig);
-
-  // Vote on proposal
-  const { config: voteConfig } = usePrepareContractWrite({
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    abi: CONTRACT_ABI,
-    functionName: 'vote',
-  });
-
-  const { write: vote } = useContractWrite(voteConfig);
-
-  useEffect(() => {
-    if (proposalsData) {
-      setProposals(proposalsData);
+  // 检查网络连接
+  const checkNetwork = () => {
+    if (!chain) {
+      throw new Error('Please connect to a network');
     }
-  }, [proposalsData]);
+
+    if (chain.id !== hardhat.id) {
+      throw new Error('Please connect to Hardhat network (localhost:8545)');
+    }
+  };
+
+  // 获取提案总数
+  const { data: proposalCount } = useContractRead({
+    address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+    abi: VOTING_SYSTEM_ABI,
+    functionName: 'proposalCount',
+    watch: true,
+  });
+
+  // 获取所有提案详情
+  useEffect(() => {
+    const fetchProposals = async () => {
+      if (!proposalCount) return;
+
+      try {
+        checkNetwork();
+
+        const proposalsData: Proposal[] = [];
+        for (let i = 0; i < Number(proposalCount); i++) {
+          try {
+            const proposal = await publicClient.readContract({
+              address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+              abi: VOTING_SYSTEM_ABI,
+              functionName: 'getProposalDetails',
+              args: [BigInt(i)]
+            });
+
+            if (proposal) {
+              proposalsData.push({
+                id: i,
+                creator: proposal[0],
+                title: proposal[1],
+                description: proposal[2],
+                isCustomVoting: proposal[3],
+                options: proposal[4].map((opt: { text: string; votes: bigint }) => ({
+                  text: opt.text,
+                  votes: opt.votes
+                }))
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching proposal ${i}:`, error);
+          }
+        }
+        setProposals(proposalsData);
+      } catch (error) {
+        console.error('Error fetching proposals:', error);
+      }
+    };
+
+    fetchProposals();
+  }, [proposalCount, chain]);
+
+  const handleCreateProposal = async (
+    title: string, 
+    description: string = '',
+    options: string[] = []
+  ) => {
+    if (!walletClient || !wagmiPublicClient) {
+      throw new Error('Wallet not connected');
+    }
+
+    // 检查网络连接
+    checkNetwork();
+
+    if (!title || !title.trim()) {
+      throw new Error('Title is required');
+    }
+
+    // 如果没有提供选项，则使用默认的 Yes/No 选项
+    let finalOptions = options.filter(opt => opt.trim() !== '');
+    if (finalOptions.length === 0) {
+      finalOptions = ['Yes', 'No'];
+    } else if (finalOptions.length < 2 || finalOptions.length > 3) {
+      throw new Error('Custom voting must have 2-3 options');
+    }
+
+    try {
+      console.log('Creating proposal with:', {
+        title: title.trim(),
+        description: description.trim(),
+        options: finalOptions,
+        address: VOTING_SYSTEM_ADDRESS,
+        account: walletClient.account,
+        chainId: chain?.id
+      });
+
+      // 准备合约调用参数
+      const hash = await walletClient.writeContract({
+        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+        abi: VOTING_SYSTEM_ABI,
+        functionName: 'createProposal',
+        args: [title.trim(), description.trim(), finalOptions],
+        account: walletClient.account,
+        chain
+      });
+
+      console.log('Transaction hash:', hash);
+
+      // 等待交易被确认
+      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+        timeout: 60_000, // 60 seconds
+      });
+
+      console.log('Transaction receipt:', receipt);
+      return receipt;
+    } catch (error: any) {
+      console.error('Error creating proposal:', {
+        error,
+        message: error.message,
+        details: error.details,
+        cause: error.cause,
+      });
+      
+      if (error.message.includes('Internal JSON-RPC error')) {
+        throw new Error('Transaction failed. Please check if the contract is deployed and your wallet has enough funds.');
+      }
+      throw error;
+    }
+  };
+
+  const handleVote = async (proposalId: number, optionIndex: number) => {
+    if (!walletClient || !wagmiPublicClient) {
+      throw new Error('Wallet not connected');
+    }
+
+    // 检查网络连接
+    checkNetwork();
+
+    try {
+      const hash = await walletClient.writeContract({
+        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+        abi: VOTING_SYSTEM_ABI,
+        functionName: 'vote',
+        args: [BigInt(proposalId), BigInt(optionIndex)],
+        account: walletClient.account,
+        chain
+      });
+
+      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+        timeout: 60_000
+      });
+      console.log('Vote transaction receipt:', receipt);
+      return receipt;
+    } catch (error) {
+      console.error('Error voting:', error);
+      throw error;
+    }
+  };
+
+  const handleEvaluate = async (proposalId: number, rating: number) => {
+    if (!walletClient || !wagmiPublicClient) {
+      throw new Error('Wallet not connected');
+    }
+
+    // 检查网络连接
+    checkNetwork();
+
+    try {
+      const hash = await walletClient.writeContract({
+        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+        abi: VOTING_SYSTEM_ABI,
+        functionName: 'evaluateProposal',
+        args: [BigInt(proposalId), rating],
+        account: walletClient.account,
+        chain
+      });
+
+      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+        timeout: 60_000
+      });
+      console.log('Evaluation transaction receipt:', receipt);
+      return receipt;
+    } catch (error) {
+      console.error('Error evaluating:', error);
+      throw error;
+    }
+  };
 
   return {
     proposals,
-    createProposal,
-    vote,
+    handleCreateProposal,
+    handleVote,
+    handleEvaluate,
   };
 }
