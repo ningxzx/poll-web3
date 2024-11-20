@@ -149,12 +149,11 @@ export function useVotingSystem() {
         error,
         message: error.message,
         details: error.details,
-        cause: error.cause,
+        code: error.code,
+        data: error.data,
+        transaction: error.transaction,
+        receipt: error.receipt
       });
-      
-      if (error.message.includes('Internal JSON-RPC error')) {
-        throw new Error('Transaction failed. Please check if the contract is deployed and your wallet has enough funds.');
-      }
       throw error;
     }
   };

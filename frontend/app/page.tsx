@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useVotingSystem } from '../hooks/useVotingSystem';
 import { useCheckIn } from '../hooks/useCheckIn';
 import { useAccount } from 'wagmi';
+import { TokenBalance } from './components/TokenBalance';
 
 export default function Home() {
   const { proposals, handleVote } = useVotingSystem();
-  const { handleCheckIn, canCheckIn, isLoading } = useCheckIn();
+  const { checkIn, canCheckIn, isLoading, isSuccess } = useCheckIn();
   const { isConnected } = useAccount();
 
   return (
@@ -21,19 +22,75 @@ export default function Home() {
             </h1>
             <div className="flex items-center space-x-4">
               {isConnected && (
-                <button
-                  onClick={handleCheckIn}
-                  disabled={!canCheckIn || isLoading}
-                  className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                    canCheckIn
-                      ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/20'
-                      : 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/20'
-                  }`}
-                >
-                  {isLoading ? '签到中...' : canCheckIn ? '每日签到' : '今日已签到'}
-                </button>
+                <>
+                  <TokenBalance />
+                  <button
+                    onClick={checkIn}
+                    disabled={!canCheckIn || isLoading}
+                    className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                      canCheckIn
+                        ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/20'
+                        : 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/20'
+                    }`}
+                  >
+                    {isLoading ? 'Checking in...' : canCheckIn ? 'Daily Check-in' : 'Already Checked In'}
+                  </button>
+                </>
               )}
-              <ConnectButton />
+              <ConnectButton.Custom>
+                {({
+                  account,
+                  chain,
+                  openAccountModal,
+                  openChainModal,
+                  openConnectModal,
+                  mounted,
+                }) => {
+                  const ready = mounted;
+                  const connected = ready && account && chain;
+
+                  return (
+                    <div
+                      {...(!ready && {
+                        'aria-hidden': true,
+                        style: {
+                          opacity: 0,
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                        },
+                      })}
+                    >
+                      {(() => {
+                        if (!connected) {
+                          return (
+                            <button
+                              onClick={openConnectModal}
+                              className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-300 
+                                       hover:bg-purple-500/30 transition-all duration-200 
+                                       border border-purple-500/20"
+                            >
+                              Connect Wallet
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={openAccountModal}
+                              className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-300 
+                                       hover:bg-purple-500/30 transition-all duration-200 
+                                       border border-purple-500/20"
+                            >
+                              {account.displayName}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                }}
+              </ConnectButton.Custom>
             </div>
           </div>
         </div>
@@ -76,7 +133,7 @@ export default function Home() {
                         <span className="text-gray-300">{option.text}</span>
                         <div className="flex items-center space-x-4">
                           <span className="text-sm text-gray-400">
-                            {Number(option.voteCount)} votes
+                            {Number(option.votes)} votes
                           </span>
                           <button
                             onClick={() => handleVote(proposal.id, index)}
@@ -93,16 +150,16 @@ export default function Home() {
                 ) : (
                   <>
                     <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Yes Votes: {Number(proposal.options[0].voteCount)}</span>
-                      <span>No Votes: {Number(proposal.options[1].voteCount)}</span>
+                      <span>Yes Votes: {Number(proposal.options[0].votes)}</span>
+                      <span>No Votes: {Number(proposal.options[1].votes)}</span>
                     </div>
                     <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500" 
                         style={{ 
                           width: `${Math.round(
-                            (Number(proposal.options[0].voteCount) / 
-                            (Number(proposal.options[0].voteCount) + Number(proposal.options[1].voteCount) || 1)) * 100
+                            (Number(proposal.options[0].votes) / 
+                            (Number(proposal.options[0].votes) + Number(proposal.options[1].votes) || 1)) * 100
                           )}%` 
                         }}
                       ></div>

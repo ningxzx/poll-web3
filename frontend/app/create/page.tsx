@@ -91,7 +91,7 @@ export default function CreateProposal() {
               </svg>
               Back to Proposals
             </Link>
-            <ConnectButton />
+            <ConnectButton showBalance={false} />
           </div>
         </div>
       </nav>

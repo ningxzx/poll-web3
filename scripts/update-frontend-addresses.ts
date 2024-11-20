@@ -1,5 +1,22 @@
-export const VOTING_SYSTEM_ADDRESS = '0x4ed7c70F96B99c776995fB64377f0d4aB3B0e1C1';
-export const VOTING_TOKEN_ADDRESS = '0x59b670e9fA9D0A427751Af201D676719a970857b';
+import fs from 'fs';
+import path from 'path';
+
+async function main() {
+  // 从部署日志中读取最新的合约地址
+  const deployLogs = fs.readFileSync('deployment-logs.txt', 'utf8');
+  const votingTokenMatch = deployLogs.match(/VotingToken deployed to: (0x[a-fA-F0-9]{40})/);
+  const votingSystemMatch = deployLogs.match(/VotingSystem deployed to: (0x[a-fA-F0-9]{40})/);
+
+  if (!votingTokenMatch || !votingSystemMatch) {
+    throw new Error('Could not find contract addresses in deployment logs');
+  }
+
+  const votingTokenAddress = votingTokenMatch[1];
+  const votingSystemAddress = votingSystemMatch[1];
+
+  // 更新前端配置文件
+  const configContent = `export const VOTING_SYSTEM_ADDRESS = '${votingSystemAddress}';
+export const VOTING_TOKEN_ADDRESS = '${votingTokenAddress}';
 
 export const VOTING_SYSTEM_ABI = [
   {
@@ -99,3 +116,14 @@ export const VOTING_TOKEN_ABI = [
     type: "function"
   }
 ];
+`;
+
+  const frontendConfigPath = path.join(__dirname, '../frontend/config/contracts.ts');
+  fs.writeFileSync(frontendConfigPath, configContent);
+  console.log('Frontend contract addresses updated successfully');
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

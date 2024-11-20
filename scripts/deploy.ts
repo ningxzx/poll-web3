@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import fs from 'fs';
 
 async function main() {
   // Deploy VotingToken first
@@ -16,6 +17,11 @@ async function main() {
 
   const votingSystemAddress = await votingSystem.getAddress();
   console.log("VotingSystem deployed to:", votingSystemAddress);
+
+  // Save deployment addresses to a file
+  const deploymentLog = `VotingToken deployed to: ${votingTokenAddress}\nVotingSystem deployed to: ${votingSystemAddress}\n`;
+  fs.writeFileSync('deployment-logs.txt', deploymentLog);
+  console.log('Deployment addresses saved to deployment-logs.txt');
 }
 
 main().catch((error) => {

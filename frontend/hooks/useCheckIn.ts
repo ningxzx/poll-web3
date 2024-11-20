@@ -42,7 +42,7 @@ export function useCheckIn() {
       console.error('Check-in error:', error);
       toast.error(error?.message || 'Failed to check in');
     },
-  });
+  } as any);
 
   // Handle check-in
   const handleCheckIn = () => {
