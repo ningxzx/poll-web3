@@ -1,66 +1,81 @@
 'use client';
 
-import { useContractWrite, useContractRead } from 'wagmi';
+import { useContractWrite, useContractRead, useAccount } from 'wagmi';
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import toast from 'react-hot-toast';
+import { type Address, type Hash } from 'viem';
+import { parseAbiItem } from 'viem';
 
-const VOTING_TOKEN_ADDRESS = '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9';
+// Contract configuration
+const VOTING_TOKEN_ADDRESS = '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e' as const;
 
 const VOTING_TOKEN_ABI = [
-  "function checkIn() external",
-  "function lastCheckIn(address) external view returns (uint256)",
-  "function balanceOf(address) external view returns (uint256)"
-];
+  parseAbiItem('function checkIn() public'),
+  parseAbiItem('function lastCheckIn(address) public view returns (uint256)'),
+  parseAbiItem('function balanceOf(address) public view returns (uint256)')
+] as const;
 
 export function useCheckIn() {
   const { address: userAddress } = useAccount();
   const [canCheckIn, setCanCheckIn] = useState(false);
   const [lastCheckInTime, setLastCheckInTime] = useState<number>(0);
 
-  // 获取上次签到时间
-  const { data: lastCheckIn } = useContractRead({
-    address: VOTING_TOKEN_ADDRESS as `0x${string}`,
+  // Get the last check-in time
+  const { data: lastCheckIn, refetch } = useContractRead({
+    address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
     functionName: 'lastCheckIn',
-    args: [userAddress],
+    args: userAddress ? [userAddress] : undefined,
     enabled: !!userAddress,
-    watch: true,
   });
 
-  // 签到操作
+  // Check-in operation
   const { write: checkIn, isLoading, isSuccess } = useContractWrite({
-    address: VOTING_TOKEN_ADDRESS as `0x${string}`,
+    address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
     functionName: 'checkIn',
+    onSuccess(data: { hash: Hash }) {
+      toast.success('Check-in successful! You received tokens!');
+      refetch();
+    },
+    onError(error) {
+      console.error('Check-in error:', error);
+      toast.error(error?.message || 'Failed to check in');
+    },
   });
 
-  // 检查是否可以签到
-  useEffect(() => {
-    if (lastCheckIn) {
-      const lastCheckInDate = new Date(Number(lastCheckIn) * 1000);
-      const now = new Date();
-      
-      // 如果是新的一天或从未签到过，则可以签到
-      setCanCheckIn(
-        lastCheckIn === 0n || 
-        lastCheckInDate.getDate() !== now.getDate() ||
-        lastCheckInDate.getMonth() !== now.getMonth() ||
-        lastCheckInDate.getFullYear() !== now.getFullYear()
-      );
-      setLastCheckInTime(Number(lastCheckIn));
+  // Handle check-in
+  const handleCheckIn = () => {
+    if (!checkIn) {
+      toast.error('Check-in function not available');
+      return;
     }
-  }, [lastCheckIn]);
-
-  const handleCheckIn = async () => {
-    try {
-      await checkIn?.();
-    } catch (error) {
-      console.error('Error checking in:', error);
-    }
+    checkIn();
   };
 
+  // Check if user can check in
+  useEffect(() => {
+    const checkCanCheckIn = () => {
+      // lastCheckIn is bigint | undefined
+      if (typeof lastCheckIn === 'undefined') {
+        setCanCheckIn(true);
+        return;
+      }
+
+      const lastCheckInTimestamp = Number(lastCheckIn) * 1000; // Convert to milliseconds
+      const now = Date.now();
+      const oneDayInMs = 24 * 60 * 60 * 1000;
+
+      // lastCheckIn is bigint here
+      setCanCheckIn(lastCheckIn === BigInt(0) || now >= lastCheckInTimestamp + oneDayInMs);
+      setLastCheckInTime(Number(lastCheckIn));
+    };
+
+    checkCanCheckIn();
+  }, [lastCheckIn]);
+
   return {
-    handleCheckIn,
+    checkIn: handleCheckIn,
     canCheckIn,
     isLoading,
     isSuccess,
