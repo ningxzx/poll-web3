@@ -5,21 +5,15 @@ import {
   useAccount,
   useWriteContract,
   useSimulateContract,
+  useReadContract,
 } from "wagmi";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { type Address, type Hash, parseAbiItem } from "viem";
-import { VOTING_TOKEN_ADDRESS } from "../config/contracts";
+import { VOTING_TOKEN_ADDRESS, VOTING_TOKEN_ABI } from "../config/contracts";
 
-const INITIAL_TOKEN_AMOUNT = 100; // Initial token amount for new users
-const DAILY_CHECKIN_REWARD = 5; // Daily check-in reward amount
-
-const VOTING_TOKEN_ABI = [
-  parseAbiItem("function checkIn() public"),
-  parseAbiItem("function lastCheckIn(address) public view returns (uint256)"),
-  parseAbiItem("function balanceOf(address) public view returns (uint256)"),
-  parseAbiItem("function mint(address to, uint256 amount) public"),
-] as const;
+const DAILY_CHECKIN_REWARD = 10; // Daily check-in reward amount
+const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export function useCheckIn() {
   const { address } = useAccount();
@@ -29,7 +23,7 @@ export function useCheckIn() {
   const { writeContractAsync } = useWriteContract();
 
   // Get the last check-in time
-  const { data: lastCheckIn, refetch } = useContractRead({
+  const { data: lastCheckIn, refetch, isLoading } = useReadContract({
     address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
     functionName: "lastCheckIn",
@@ -39,12 +33,19 @@ export function useCheckIn() {
     },
   });
 
-  // Handle check-in
+  const checkCanCheckIn = () => {
+    if (!lastCheckIn) return;
+
+    const lastCheckInDate = new Date(Number(lastCheckIn) * 1000);
+    const now = new Date();
+    const timeDiff = now.getTime() - lastCheckInDate.getTime();
+    setCanCheckIn(timeDiff >= ONE_DAY);
+    setLastCheckInTime(Number(lastCheckIn));
+    setIsInitialized(true);
+  };
+
   const handleCheckIn = async () => {
-    if (!address) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
+    if (!address) return;
 
     try {
       const hash = await writeContractAsync({
@@ -53,37 +54,28 @@ export function useCheckIn() {
         functionName: "checkIn",
       } as any);
 
-      toast.success(
-        `Check-in successful! You received ${DAILY_CHECKIN_REWARD} tokens!`
-      );
-      await refetch();
+      if (hash) {
+        toast.success("Check-in successful!");
+        await refetch();
+        // 触发 balance 更新
+        window.dispatchEvent(new Event('REFRESH_BALANCE'));
+      }
     } catch (error: any) {
       console.error("Check-in error:", error);
-      toast.error(error?.message || "Failed to check in");
+      toast.error(error.message || "Failed to check in");
     }
   };
 
-  // Check if user can check in (once per day)
   useEffect(() => {
-    const checkCanCheckIn = () => {
-      if (lastCheckIn === undefined) return;
-
-      const lastCheckInDate = new Date(Number(lastCheckIn) * 1000);
-      const now = new Date();
-      const diffInHours =
-        (now.getTime() - lastCheckInDate.getTime()) / (1000 * 60 * 60);
-
-      setLastCheckInTime(Number(lastCheckIn));
-      setCanCheckIn(diffInHours >= 24);
-    };
-
     checkCanCheckIn();
   }, [lastCheckIn]);
 
   return {
     canCheckIn,
+    isLoading,
     lastCheckInTime,
     checkIn: handleCheckIn,
     isInitialized,
+    dailyReward: DAILY_CHECKIN_REWARD
   };
 }

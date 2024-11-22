@@ -41,8 +41,8 @@
       ]
     },
     "D:\\hackathon\\CascadeProjects\\windsurf-project\\voting-dapp\\contracts\\VotingToken.sol": {
-      "lastModificationDate": 1732259134936,
-      "contentHash": "d1d3e7c430b38dd23c3c2499daa4400d",
+      "lastModificationDate": 1732265044394,
+      "contentHash": "b00ce1a53becd73d41790db8f9f2939b",
       "sourceName": "contracts/VotingToken.sol",
       "solcConfig": {
         "version": "0.8.20",

@@ -28,6 +28,7 @@ export interface VotingTokenInterface extends Interface {
     nameOrSignature:
       | "DAILY_CHECKIN_REWARD"
       | "EVALUATION_REWARD"
+      | "INITIAL_TOKEN_AMOUNT"
       | "PROPOSAL_REWARD"
       | "VOTE_REWARD"
       | "allowance"
@@ -35,6 +36,8 @@ export interface VotingTokenInterface extends Interface {
       | "balanceOf"
       | "checkIn"
       | "decimals"
+      | "getInitialTokens"
+      | "hasInitialTokens"
       | "lastCheckIn"
       | "mint"
       | "mintEvaluationReward"
@@ -65,6 +68,10 @@ export interface VotingTokenInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "INITIAL_TOKEN_AMOUNT",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "PROPOSAL_REWARD",
     values?: undefined
   ): string;
@@ -86,6 +93,14 @@ export interface VotingTokenInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "checkIn", values?: undefined): string;
   encodeFunctionData(functionFragment: "decimals", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "getInitialTokens",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "hasInitialTokens",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "lastCheckIn",
     values: [AddressLike]
@@ -147,6 +162,10 @@ export interface VotingTokenInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "INITIAL_TOKEN_AMOUNT",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "PROPOSAL_REWARD",
     data: BytesLike
   ): Result;
@@ -159,6 +178,14 @@ export interface VotingTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "checkIn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getInitialTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "hasInitialTokens",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "lastCheckIn",
     data: BytesLike
@@ -302,6 +329,8 @@ export interface VotingToken extends BaseContract {
 
   EVALUATION_REWARD: TypedContractMethod<[], [bigint], "view">;
 
+  INITIAL_TOKEN_AMOUNT: TypedContractMethod<[], [bigint], "view">;
+
   PROPOSAL_REWARD: TypedContractMethod<[], [bigint], "view">;
 
   VOTE_REWARD: TypedContractMethod<[], [bigint], "view">;
@@ -323,6 +352,10 @@ export interface VotingToken extends BaseContract {
   checkIn: TypedContractMethod<[], [void], "nonpayable">;
 
   decimals: TypedContractMethod<[], [bigint], "view">;
+
+  getInitialTokens: TypedContractMethod<[], [void], "nonpayable">;
+
+  hasInitialTokens: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   lastCheckIn: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
@@ -397,6 +430,9 @@ export interface VotingToken extends BaseContract {
     nameOrSignature: "EVALUATION_REWARD"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "INITIAL_TOKEN_AMOUNT"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "PROPOSAL_REWARD"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -425,6 +461,12 @@ export interface VotingToken extends BaseContract {
   getFunction(
     nameOrSignature: "decimals"
   ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "getInitialTokens"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "hasInitialTokens"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "lastCheckIn"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;

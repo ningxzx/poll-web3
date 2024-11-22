@@ -2,6 +2,14 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { Providers } from "./providers";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
+import { Metadata } from "next";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Vote for Fun',
+    description:'Vote for Fun',
+  }
+}
 
 export default function RootLayout({
   children,

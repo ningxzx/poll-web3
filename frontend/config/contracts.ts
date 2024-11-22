@@ -1,5 +1,5 @@
-export const VOTING_SYSTEM_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
-export const VOTING_TOKEN_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+export const VOTING_SYSTEM_ADDRESS = '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853';
+export const VOTING_TOKEN_ADDRESS = '0x0165878A594ca255338adfa4d48449f69242Eb8F';
 
 export const VOTING_SYSTEM_ABI = [
   {
@@ -96,6 +96,13 @@ export const VOTING_TOKEN_ABI = [
     name: "lastCheckIn",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "getInitialTokens",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function"
   }
 ] as const;
