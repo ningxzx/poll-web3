@@ -21,7 +21,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
       <NavBar />
 
-      <main className="max-w-7xl mx-auto px-6 pt-24 pb-12">
+      <main className="container mx-auto px-6 pt-24 pb-12">
         <div className="flex justify-between items-center mb-12">
           <div>
             <h4 className="text-xl font-bold text-gray-100 my-2">

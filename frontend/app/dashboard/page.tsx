@@ -1,93 +1,118 @@
 "use client";
 
-import { useVotingSystem } from "../../hooks/useVotingSystem";
 import { useAccount } from "wagmi";
 import { TokenBalance } from "../components/TokenBalance";
-import { useEffect, useState } from "react";
-import { useCheckIn } from "../../hooks/useCheckIn";
+import { Tabs } from "../components/Tabs";
 import NavBar from "../components/NavBar";
+import { useTokenBalance } from "../../hooks/useTokenBalance";
+import { useCheckIn } from "../../hooks/useCheckIn";
+import { useInitialTokens } from "../../hooks/useInitialTokens";
 
 export default function Dashboard() {
-  const { proposals } = useVotingSystem();
-  const { address, isConnected } = useAccount();
-  const { checkIn, canCheckIn, isLoading, isSuccess, dailyReward } = useCheckIn();
+  const { address } = useAccount();
+  const { balance } = useTokenBalance();
+  const { checkIn, isLoading: isCheckingIn } = useCheckIn();
+  useInitialTokens();
 
-  const [userStats, setUserStats] = useState({
-    totalVotes: 0,
-    participationRate: 0,
-  });
+  const tabs = [
+    {
+      id: "voting",
+      label: "Voting List",
+      content: (
+        <div className="p-4">
+          <h3 className="text-lg font-medium">Available Proposals</h3>
+          {/* TODO: Add voting proposals list */}
+          <p className="text-gray-500">No available proposals</p>
+        </div>
+      ),
+    },
+    {
+      id: "created",
+      label: "My Proposals",
+      content: (
+        <div className="p-4">
+          <h3 className="text-lg font-medium">My Created Proposals</h3>
+          {/* TODO: Add created proposals list */}
+          <p className="text-gray-500">No created proposals</p>
+        </div>
+      ),
+    },
+    {
+      id: "history",
+      label: "Token History",
+      content: (
+        <div className="p-4">
+          <h3 className="text-lg font-medium">Token History</h3>
+          {/* TODO: Add token history list */}
+          <p className="text-gray-500">No token history</p>
+        </div>
+      ),
+    },
+  ];
 
-  useEffect(() => {
-    setUserStats({
-      totalVotes: 12,
-      participationRate: 75,
-    });
-  }, []);
+  if (!address) {
+    return (
+      <div>
+        <NavBar />
+        <div className="container mx-auto px-4 py-8">
+          <p className="text-center text-gray-600">Please connect your wallet first</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pt-2">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
       <NavBar />
-      <div className="max-w-7xl mx-auto mt-20">
-        {isConnected ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <TokenBalance />
-              <button
-                onClick={checkIn}
-                disabled={!canCheckIn || isLoading}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 ${
-                  canCheckIn
-                    ? "bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/20"
-                    : "bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-500/20"
-                }`}
-              >
-                {isLoading
-                  ? "Checking in..."
-                  : canCheckIn
-                  ? `Daily Check-in (+${dailyReward} tokens)`
-                  : "Already Checked In"}
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                <h3 className="text-lg font-semibold text-purple-300">Token Usage</h3>
-                <p className="text-gray-400">Create Proposal Cost: 5 tokens</p>
-                <p className="text-gray-400">Daily Check-in Reward: {dailyReward} tokens</p>
-              </div>
-              
-              <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                <h3 className="text-lg font-semibold text-purple-300">Voting Stats</h3>
-                <p className="text-gray-400">Total Votes: {userStats.totalVotes}</p>
-                <p className="text-gray-400">Participation Rate: {userStats.participationRate}%</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-gray-400">
-            Please connect your wallet to view your dashboard
-          </div>
-        )}
 
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Active Proposals</h2>
-          {proposals && proposals.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proposals.map((proposal: any, index: number) => (
-                <div
-                  key={index}
-                  className="p-4 bg-gray-800 rounded-lg border border-gray-700"
-                >
-                  <h3 className="text-lg font-semibold text-white">
-                    {proposal.title}
-                  </h3>
-                  <p className="text-gray-400">{proposal.description}</p>
-                </div>
-              ))}
+      {/* Main Container with Side Padding */}
+      <div className="container mx-auto px-8 py-6 pt-24">
+        {/* Token Info Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Balance Card */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-200">Token Balance</h3>
+              <div className="p-2 bg-gray-700/50 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
             </div>
-          ) : (
-            <p className="text-gray-400">No active proposals</p>
-          )}
+            <TokenBalance />
+          </div>
+
+          {/* Daily Check-in Card */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-200">Daily Rewards</h3>
+              <div className="p-2 bg-gray-700/50 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <button
+              onClick={checkIn}
+              disabled={isCheckingIn}
+              className={`
+                w-full px-4 py-3 rounded-xl text-white font-medium transition-all
+                ${
+                  isCheckingIn
+                    ? "bg-gray-600 cursor-not-allowed"
+                    : "bg-purple-500 hover:bg-purple-600 shadow-sm hover:shadow-md"
+                }
+              `}
+            >
+              {isCheckingIn ? "Checking in..." : "Daily Check-in"}
+            </button>
+          </div>
+
+        </div>
+
+        {/* Tabs Section */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-lg">
+          <Tabs tabs={tabs} />
         </div>
       </div>
     </div>

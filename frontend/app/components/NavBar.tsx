@@ -12,7 +12,7 @@ export default function NavBar() {
 
   return (
     <nav className="glass-effect fixed top-0 w-full z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="container mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-6">
             <Link
