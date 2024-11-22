@@ -17,6 +17,11 @@ contract VotingToken is ERC20, Ownable {
         _mint(msg.sender, 1000000 * 10 ** 18); // 初始代币供应
     }
 
+    modifier onlyVotingSystem() {
+        require(msg.sender == votingSystem, "Only VotingSystem can call this");
+        _;
+    }
+
     function setVotingSystem(address _votingSystem) external onlyOwner {
         require(_votingSystem != address(0), "Invalid voting system address");
         votingSystem = _votingSystem;
@@ -37,15 +42,15 @@ contract VotingToken is ERC20, Ownable {
         _mint(to, amount);
     }
 
-    function mintProposalReward(address recipient) external onlyOwner {
+    function mintProposalReward(address recipient) external onlyVotingSystem {
         _mint(recipient, PROPOSAL_REWARD);
     }
 
-    function mintVoteReward(address voter) external onlyOwner {
+    function mintVoteReward(address voter) external onlyVotingSystem {
         _mint(voter, VOTE_REWARD);
     }
 
-    function mintEvaluationReward(address evaluator) external onlyOwner {
+    function mintEvaluationReward(address evaluator) external onlyVotingSystem {
         _mint(evaluator, EVALUATION_REWARD);
     }
 }

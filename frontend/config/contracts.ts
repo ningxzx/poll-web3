@@ -1,5 +1,5 @@
-export const VOTING_SYSTEM_ADDRESS = '0x4ed7c70F96B99c776995fB64377f0d4aB3B0e1C1';
-export const VOTING_TOKEN_ADDRESS = '0x59b670e9fA9D0A427751Af201D676719a970857b';
+export const VOTING_SYSTEM_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+export const VOTING_TOKEN_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 
 export const VOTING_SYSTEM_ABI = [
   {
@@ -60,7 +60,7 @@ export const VOTING_SYSTEM_ABI = [
     stateMutability: "view",
     type: "function"
   }
-];
+] as const;
 
 export const VOTING_TOKEN_ABI = [
   {
@@ -98,4 +98,4 @@ export const VOTING_TOKEN_ABI = [
     stateMutability: "view",
     type: "function"
   }
-];
+] as const;

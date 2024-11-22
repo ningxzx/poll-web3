@@ -1,84 +1,89 @@
-'use client';
+"use client";
 
-import { useContractWrite, useContractRead, useAccount } from 'wagmi';
-import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
-import { type Address, type Hash } from 'viem';
-import { parseAbiItem } from 'viem';
+import {
+  useContractRead,
+  useAccount,
+  useWriteContract,
+  useSimulateContract,
+} from "wagmi";
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
+import { type Address, type Hash, parseAbiItem } from "viem";
+import { VOTING_TOKEN_ADDRESS } from "../config/contracts";
 
-// Contract configuration
-const VOTING_TOKEN_ADDRESS = '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e' as const;
+const INITIAL_TOKEN_AMOUNT = 100; // Initial token amount for new users
+const DAILY_CHECKIN_REWARD = 5; // Daily check-in reward amount
 
 const VOTING_TOKEN_ABI = [
-  parseAbiItem('function checkIn() public'),
-  parseAbiItem('function lastCheckIn(address) public view returns (uint256)'),
-  parseAbiItem('function balanceOf(address) public view returns (uint256)')
+  parseAbiItem("function checkIn() public"),
+  parseAbiItem("function lastCheckIn(address) public view returns (uint256)"),
+  parseAbiItem("function balanceOf(address) public view returns (uint256)"),
+  parseAbiItem("function mint(address to, uint256 amount) public"),
 ] as const;
 
 export function useCheckIn() {
-  const { address: userAddress } = useAccount();
+  const { address } = useAccount();
   const [canCheckIn, setCanCheckIn] = useState(false);
   const [lastCheckInTime, setLastCheckInTime] = useState<number>(0);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { writeContractAsync } = useWriteContract();
 
   // Get the last check-in time
   const { data: lastCheckIn, refetch } = useContractRead({
     address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
-    functionName: 'lastCheckIn',
-    args: userAddress ? [userAddress] : undefined,
-    enabled: !!userAddress,
+    functionName: "lastCheckIn",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    },
   });
 
-  // Check-in operation
-  const { write: checkIn, isLoading, isSuccess } = useContractWrite({
-    address: VOTING_TOKEN_ADDRESS,
-    abi: VOTING_TOKEN_ABI,
-    functionName: 'checkIn',
-    onSuccess(data: { hash: Hash }) {
-      toast.success('Check-in successful! You received tokens!');
-      refetch();
-    },
-    onError(error) {
-      console.error('Check-in error:', error);
-      toast.error(error?.message || 'Failed to check in');
-    },
-  } as any);
-
   // Handle check-in
-  const handleCheckIn = () => {
-    if (!checkIn) {
-      toast.error('Check-in function not available');
+  const handleCheckIn = async () => {
+    if (!address) {
+      toast.error("Please connect your wallet first");
       return;
     }
-    checkIn();
+
+    try {
+      const hash = await writeContractAsync({
+        address: VOTING_TOKEN_ADDRESS,
+        abi: VOTING_TOKEN_ABI,
+        functionName: "checkIn",
+      } as any);
+
+      toast.success(
+        `Check-in successful! You received ${DAILY_CHECKIN_REWARD} tokens!`
+      );
+      await refetch();
+    } catch (error: any) {
+      console.error("Check-in error:", error);
+      toast.error(error?.message || "Failed to check in");
+    }
   };
 
-  // Check if user can check in
+  // Check if user can check in (once per day)
   useEffect(() => {
     const checkCanCheckIn = () => {
-      // lastCheckIn is bigint | undefined
-      if (typeof lastCheckIn === 'undefined') {
-        setCanCheckIn(true);
-        return;
-      }
+      if (lastCheckIn === undefined) return;
 
-      const lastCheckInTimestamp = Number(lastCheckIn) * 1000; // Convert to milliseconds
-      const now = Date.now();
-      const oneDayInMs = 24 * 60 * 60 * 1000;
+      const lastCheckInDate = new Date(Number(lastCheckIn) * 1000);
+      const now = new Date();
+      const diffInHours =
+        (now.getTime() - lastCheckInDate.getTime()) / (1000 * 60 * 60);
 
-      // lastCheckIn is bigint here
-      setCanCheckIn(lastCheckIn === BigInt(0) || now >= lastCheckInTimestamp + oneDayInMs);
       setLastCheckInTime(Number(lastCheckIn));
+      setCanCheckIn(diffInHours >= 24);
     };
 
     checkCanCheckIn();
   }, [lastCheckIn]);
 
   return {
-    checkIn: handleCheckIn,
     canCheckIn,
-    isLoading,
-    isSuccess,
-    lastCheckInTime
+    lastCheckInTime,
+    checkIn: handleCheckIn,
+    isInitialized,
   };
 }

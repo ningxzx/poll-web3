@@ -18,6 +18,10 @@ async function main() {
   const votingSystemAddress = await votingSystem.getAddress();
   console.log("VotingSystem deployed to:", votingSystemAddress);
 
+  // Set VotingSystem address in VotingToken contract
+  await votingToken.setVotingSystem(votingSystemAddress);
+  console.log("VotingSystem address set in VotingToken contract");
+
   // Save deployment addresses to a file
   const deploymentLog = `VotingToken deployed to: ${votingTokenAddress}\nVotingSystem deployed to: ${votingSystemAddress}\n`;
   fs.writeFileSync('deployment-logs.txt', deploymentLog);

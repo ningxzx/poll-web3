@@ -1,43 +1,36 @@
-'use client';
+"use client";
 
-import { useContractRead } from 'wagmi';
-import { useAccount } from 'wagmi';
-import { useState, useEffect } from 'react';
-import { formatEther } from 'viem';
-
-const VOTING_TOKEN_ADDRESS = '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e';
+import { useAccount } from "wagmi";
+import { useState, useEffect } from "react";
+import { parseAbiItem } from "viem";
+import { VOTING_TOKEN_ADDRESS } from "../config/contracts";
+import { readContract } from "@wagmi/core";
+import { config } from "../config/wagmi";
 
 const VOTING_TOKEN_ABI = [
-  {
-    inputs: [{ name: "", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function"
-  }
+  parseAbiItem("function balanceOf(address) public view returns (uint256)"),
 ] as const;
 
 export function useTokenBalance() {
   const { address: userAddress } = useAccount();
-  const [balance, setBalance] = useState<string>('0');
+  const [balance, setBalance] = useState<string>("0");
 
-  const { data: tokenBalance, refetch } = useContractRead({
-    address: VOTING_TOKEN_ADDRESS as `0x${string}`,
+  const tokenBalance = readContract(config, {
+    address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
-    functionName: 'balanceOf',
+    functionName: "balanceOf",
     args: userAddress ? [userAddress] : undefined,
-    enabled: !!userAddress,
-    watch: true,
   });
 
   useEffect(() => {
     if (tokenBalance !== undefined) {
-      setBalance(formatEther(tokenBalance));
+      // Convert from wei (18 decimals) to token amount
+      const tokenAmount = Number(tokenBalance) / 10 ** 18;
+      setBalance(tokenAmount.toString());
     }
   }, [tokenBalance]);
 
   return {
     balance,
-    refetchBalance: refetch
   };
 }

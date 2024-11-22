@@ -1,10 +1,24 @@
-'use client';
+"use client";
 
-import { useContractRead, useWalletClient, useNetwork, usePublicClient } from 'wagmi';
-import { useState, useEffect } from 'react';
-import { publicClient } from '../config/wagmi';
-import { VOTING_SYSTEM_ADDRESS, VOTING_SYSTEM_ABI } from '../config/contracts';
-import { hardhat } from 'wagmi/chains';
+import {
+  useAccount,
+  useWriteContract,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  http,
+} from "wagmi";
+import { useState, useEffect } from "react";
+import { VOTING_SYSTEM_ADDRESS, VOTING_SYSTEM_ABI } from "../config/contracts";
+import { usePublicClient } from "wagmi";
+import { localhost } from "viem/chains";
+import { config } from "../config/wagmi";
+
+// Token costs configuration
+export const TOKEN_COSTS = {
+  CREATE_PROPOSAL: 5,
+  INITIAL_BALANCE: 100,
+  DAILY_CHECKIN: 5,
+} as const;
 
 interface Option {
   text: string;
@@ -21,209 +35,145 @@ interface Proposal {
 }
 
 export function useVotingSystem() {
-  const { data: walletClient } = useWalletClient();
-  const { chain } = useNetwork();
-  const wagmiPublicClient = usePublicClient();
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const { writeContractAsync } = useWriteContract();
 
-  // 检查网络连接
-  const checkNetwork = () => {
-    if (!chain) {
-      throw new Error('Please connect to a network');
-    }
+  console.log({ publicClient });
 
-    if (chain.id !== hardhat.id) {
-      throw new Error('Please connect to Hardhat network (localhost:8545)');
-    }
-  };
+  // Get proposal count
+  const { data: proposalCount, refetch: refetchProposalCount } =
+    useReadContract({
+      address: VOTING_SYSTEM_ADDRESS,
+      abi: VOTING_SYSTEM_ABI,
+      functionName: "proposalCount",
+    });
 
-  // 获取提案总数
-  const { data: proposalCount } = useContractRead({
-    address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
-    abi: VOTING_SYSTEM_ABI,
-    functionName: 'proposalCount',
-    watch: true,
-  });
-
-  // 获取所有提案详情
+  // Fetch proposals whenever the count changes
   useEffect(() => {
     const fetchProposals = async () => {
-      if (!proposalCount) return;
+      if (!proposalCount || !publicClient) return;
 
       try {
-        checkNetwork();
+        const count = Number(proposalCount);
+        console.log("Fetching proposals. Count:", count);
 
-        const proposalsData: Proposal[] = [];
-        for (let i = 0; i < Number(proposalCount); i++) {
-          try {
-            const proposal = await publicClient.readContract({
-              address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+        const proposalPromises = [];
+        for (let i = 1; i <= count; i++) {
+          proposalPromises.push(
+            publicClient.readContract({
+              address: VOTING_SYSTEM_ADDRESS,
               abi: VOTING_SYSTEM_ABI,
-              functionName: 'getProposalDetails',
-              args: [BigInt(i)]
-            });
-
-            if (proposal) {
-              proposalsData.push({
-                id: i,
-                creator: proposal[0],
-                title: proposal[1],
-                description: proposal[2],
-                isCustomVoting: proposal[3],
-                options: proposal[4].map((opt: { text: string; votes: bigint }) => ({
-                  text: opt.text,
-                  votes: opt.votes
-                }))
-              });
-            }
-          } catch (error) {
-            console.error(`Error fetching proposal ${i}:`, error);
-          }
+              functionName: "getProposalDetails",
+              args: [BigInt(i)],
+            })
+          );
         }
-        setProposals(proposalsData);
+
+        const results = await Promise.all(proposalPromises);
+        const formattedProposals = results.map((proposal, index) => ({
+          id: index + 1,
+          creator: proposal[0],
+          title: proposal[1],
+          description: proposal[2],
+          isCustomVoting: proposal[3],
+          options: proposal[4].map((opt: any) => ({
+            text: opt.text,
+            votes: opt.votes,
+          })),
+        }));
+
+        console.log("Fetched proposals:", formattedProposals);
+        setProposals(formattedProposals);
       } catch (error) {
-        console.error('Error fetching proposals:', error);
+        console.error("Error fetching proposals:", error);
       }
     };
 
     fetchProposals();
-  }, [proposalCount, chain]);
+  }, [proposalCount, publicClient]);
 
   const handleCreateProposal = async (
-    title: string, 
-    description: string = '',
+    title: string,
+    description: string = "",
     options: string[] = []
   ) => {
-    if (!walletClient || !wagmiPublicClient) {
-      throw new Error('Wallet not connected');
-    }
-
-    // 检查网络连接
-    checkNetwork();
-
-    if (!title || !title.trim()) {
-      throw new Error('Title is required');
-    }
-
-    // 如果没有提供选项，则使用默认的 Yes/No 选项
-    let finalOptions = options.filter(opt => opt.trim() !== '');
-    if (finalOptions.length === 0) {
-      finalOptions = ['Yes', 'No'];
-    } else if (finalOptions.length < 2 || finalOptions.length > 3) {
-      throw new Error('Custom voting must have 2-3 options');
+    if (!address || !publicClient) {
+      throw new Error("Wallet not connected");
     }
 
     try {
-      console.log('Creating proposal with:', {
+      if (options.length > 0 && (options.length < 2 || options.length > 3)) {
+        throw new Error("Custom voting must have 2-3 options");
+      }
+
+      console.log("Creating proposal with args:", {
         title: title.trim(),
         description: description.trim(),
-        options: finalOptions,
+        options,
+      });
+
+      const hash = await writeContractAsync({
         address: VOTING_SYSTEM_ADDRESS,
-        account: walletClient.account,
-        chainId: chain?.id
-      });
-
-      // 准备合约调用参数
-      const hash = await walletClient.writeContract({
-        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
         abi: VOTING_SYSTEM_ABI,
-        functionName: 'createProposal',
-        args: [title.trim(), description.trim(), finalOptions],
-        account: walletClient.account,
-        chain
-      });
+        functionName: "createProposal",
+        args: [title.trim(), description.trim(), options],
+      } as any);
 
-      console.log('Transaction hash:', hash);
+      console.log("Transaction hash:", hash);
 
-      // 等待交易被确认
-      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
-        hash,
-        confirmations: 1,
-        timeout: 60_000, // 60 seconds
-      });
+      // Wait for the transaction to be mined
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      console.log("Transaction receipt:", receipt);
 
-      console.log('Transaction receipt:', receipt);
+      // Wait a moment for the blockchain to update
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Refetch proposal count and proposals
+      await refetchProposalCount();
+
       return receipt;
-    } catch (error: any) {
-      console.error('Error creating proposal:', {
-        error,
-        message: error.message,
-        details: error.details,
-        code: error.code,
-        data: error.data,
-        transaction: error.transaction,
-        receipt: error.receipt
-      });
+    } catch (error) {
+      console.error("Error creating proposal:", error);
       throw error;
     }
   };
 
   const handleVote = async (proposalId: number, optionIndex: number) => {
-    if (!walletClient || !wagmiPublicClient) {
-      throw new Error('Wallet not connected');
+    if (!address || !publicClient) {
+      throw new Error("Wallet not connected");
     }
 
-    // 检查网络连接
-    checkNetwork();
-
     try {
-      const hash = await walletClient.writeContract({
-        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
+      const hash = await writeContractAsync({
+        address: VOTING_SYSTEM_ADDRESS,
         abi: VOTING_SYSTEM_ABI,
-        functionName: 'vote',
+        functionName: "vote",
         args: [BigInt(proposalId), BigInt(optionIndex)],
-        account: walletClient.account,
-        chain
-      });
+      } as any);
 
-      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
-        hash,
-        confirmations: 1,
-        timeout: 60_000
-      });
-      console.log('Vote transaction receipt:', receipt);
+      console.log("Vote transaction hash:", hash);
+
+      // Wait for the transaction to be mined
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      console.log("Vote transaction receipt:", receipt);
+
+      // Wait a moment for the blockchain to update
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Refetch proposal count and proposals
+      await refetchProposalCount();
       return receipt;
     } catch (error) {
-      console.error('Error voting:', error);
-      throw error;
-    }
-  };
-
-  const handleEvaluate = async (proposalId: number, rating: number) => {
-    if (!walletClient || !wagmiPublicClient) {
-      throw new Error('Wallet not connected');
-    }
-
-    // 检查网络连接
-    checkNetwork();
-
-    try {
-      const hash = await walletClient.writeContract({
-        address: VOTING_SYSTEM_ADDRESS as `0x${string}`,
-        abi: VOTING_SYSTEM_ABI,
-        functionName: 'evaluateProposal',
-        args: [BigInt(proposalId), rating],
-        account: walletClient.account,
-        chain
-      });
-
-      const receipt = await wagmiPublicClient.waitForTransactionReceipt({
-        hash,
-        confirmations: 1,
-        timeout: 60_000
-      });
-      console.log('Evaluation transaction receipt:', receipt);
-      return receipt;
-    } catch (error) {
-      console.error('Error evaluating:', error);
+      console.error("Error voting:", error);
       throw error;
     }
   };
 
   return {
     proposals,
-    handleCreateProposal,
-    handleVote,
-    handleEvaluate,
+    createProposal: handleCreateProposal,
+    vote: handleVote,
   };
 }
