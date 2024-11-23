@@ -7,22 +7,60 @@ import NavBar from "../components/NavBar";
 import { useTokenBalance } from "../../hooks/useTokenBalance";
 import { useCheckIn } from "../../hooks/useCheckIn";
 import { useInitialTokens } from "../../hooks/useInitialTokens";
+import { useVotingSystem } from "../../hooks/useVotingSystem";
+import Link from "next/link";
+import { useMemo } from "react";
 
 export default function Dashboard() {
   const { address } = useAccount();
   const { balance } = useTokenBalance();
-  const { checkIn, isLoading: isCheckingIn } = useCheckIn();
+  const { checkIn, isLoading: isCheckingIn, canCheckIn } = useCheckIn();
+  const { proposals, userVotes } = useVotingSystem();
   useInitialTokens();
+
+  // 获取用户创建的提案
+  const userProposals = useMemo(() => {
+    if (!address) return [];
+    return proposals.filter(
+      (proposal) => proposal.creator.toLowerCase() === address.toLowerCase()
+    );
+  }, [proposals, address]);
+
+  // 获取用户投票过的提案
+  const votedProposals = useMemo(() => {
+    return proposals.filter((proposal) => userVotes[proposal.id]?.voted);
+  }, [proposals, userVotes]);
 
   const tabs = [
     {
-      id: "voting",
-      label: "Voting List",
+      id: "voted",
+      label: "My Votes",
       content: (
         <div className="p-4">
-          <h3 className="text-lg font-medium">Available Proposals</h3>
-          {/* TODO: Add voting proposals list */}
-          <p className="text-gray-500">No available proposals</p>
+          {votedProposals.length === 0 ? (
+            <p className="text-gray-500 mt-1">You haven't voted on any proposals yet</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {votedProposals.map((proposal) => {
+                const voteData = userVotes[proposal.id];
+                const selectedOption = proposal.options[voteData.optionIndex];
+                return (
+                  <div
+                    key={proposal.id}
+                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+                  >
+                    <h4 className="text-lg font-medium text-gray-200">{proposal.title}</h4>
+                    <p className="text-gray-400 mt-2">{proposal.description}</p>
+                    <div className="mt-3 flex justify-between items-center">
+                      <div className="text-sm text-purple-400">
+                        Your vote: {selectedOption.text}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ),
     },
@@ -31,9 +69,40 @@ export default function Dashboard() {
       label: "My Proposals",
       content: (
         <div className="p-4">
-          <h3 className="text-lg font-medium">My Created Proposals</h3>
-          {/* TODO: Add created proposals list */}
-          <p className="text-gray-500">No created proposals</p>
+          {userProposals.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">You haven't created any proposals yet</p>
+              <Link
+                href="/create"
+                className="text-purple-400 hover:text-purple-300"
+              >
+                Create your first proposal →
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {userProposals.map((proposal) => (
+                <div
+                  key={proposal.id}
+                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+                >
+                  <h4 className="text-lg font-medium text-gray-200">{proposal.title}</h4>
+                  <p className="text-gray-400 mt-2">{proposal.description}</p>
+                  <div className="mt-3 flex justify-between items-center">
+                    <div className="text-sm text-gray-500">
+                      Total Votes: {proposal.options.reduce((acc, opt) => acc + Number(opt.votes), 0)}
+                    </div>
+                    <Link
+                      href="/"
+                      className="text-purple-400 hover:text-purple-300 text-sm"
+                    >
+                      View Details →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ),
     },
@@ -94,17 +163,17 @@ export default function Dashboard() {
             </div>
             <button
               onClick={checkIn}
-              disabled={isCheckingIn}
+              disabled={isCheckingIn || !canCheckIn}
               className={`
                 w-full px-4 py-3 rounded-xl text-white font-medium transition-all
                 ${
-                  isCheckingIn
+                  isCheckingIn || !canCheckIn
                     ? "bg-gray-600 cursor-not-allowed"
                     : "bg-purple-500 hover:bg-purple-600 shadow-sm hover:shadow-md"
                 }
               `}
             >
-              {isCheckingIn ? "Checking in..." : "Daily Check-in"}
+              {isCheckingIn ? "Checking in..." : canCheckIn ? "Daily Check-in" : "Already Checked In"}
             </button>
           </div>
 

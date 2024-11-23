@@ -20,6 +20,7 @@ export function useCheckIn() {
   const [canCheckIn, setCanCheckIn] = useState(false);
   const [lastCheckInTime, setLastCheckInTime] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
   const { writeContractAsync } = useWriteContract();
 
   // Get the last check-in time
@@ -45,9 +46,13 @@ export function useCheckIn() {
   };
 
   const handleCheckIn = async () => {
-    if (!address) return;
+    if (!address || !canCheckIn) {
+      toast.error("Check-in not available");
+      return;
+    }
 
     try {
+      setIsCheckingIn(true);
       const hash = await writeContractAsync({
         address: VOTING_TOKEN_ADDRESS,
         abi: VOTING_TOKEN_ABI,
@@ -59,10 +64,13 @@ export function useCheckIn() {
         await refetch();
         // 触发 balance 更新
         window.dispatchEvent(new Event('REFRESH_BALANCE'));
+        setCanCheckIn(false);
       }
     } catch (error: any) {
       console.error("Check-in error:", error);
-      toast.error(error.message || "Failed to check in");
+      toast.error("Check-in failed");
+    } finally {
+      setIsCheckingIn(false);
     }
   };
 
@@ -76,6 +84,7 @@ export function useCheckIn() {
     lastCheckInTime,
     checkIn: handleCheckIn,
     isInitialized,
-    dailyReward: DAILY_CHECKIN_REWARD
+    dailyReward: DAILY_CHECKIN_REWARD,
+    isCheckingIn
   };
 }

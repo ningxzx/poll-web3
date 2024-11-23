@@ -14,6 +14,7 @@ contract VotingSystem {
         address creator;
         string title;
         string description;
+        string coverImage;  
         Option[] options;
         mapping(address => bool) hasVoted;
         mapping(address => int8) evaluations;
@@ -36,7 +37,8 @@ contract VotingSystem {
     function createProposal(
         string memory _title, 
         string memory _description,
-        string[] memory _options
+        string[] memory _options,
+        string memory _coverImage  
     ) public {
         require(_options.length == 0 || (_options.length >= 2 && _options.length <= 3), 
                 "Custom voting must have 2-3 options");
@@ -45,12 +47,14 @@ contract VotingSystem {
         
         console.log("Creating proposal %s", _title);
         console.log("Description: %s", _description);
+        console.log("Cover Image: %s", _coverImage);
         console.log("Number of options: %s", _options.length);
 
         // 分步骤初始化 Proposal
         proposals[proposalCount].creator = msg.sender;
         proposals[proposalCount].title = _title;
         proposals[proposalCount].description = _description;
+        proposals[proposalCount].coverImage = _coverImage;  
         proposals[proposalCount].exists = true;
         
         if (_options.length > 0) {
@@ -126,6 +130,7 @@ contract VotingSystem {
         address creator,
         string memory title,
         string memory description,
+        string memory coverImage,  
         bool isCustomVoting,
         Option[] memory options
     ) {
@@ -136,6 +141,7 @@ contract VotingSystem {
             proposal.creator,
             proposal.title,
             proposal.description,
+            proposal.coverImage,  
             proposal.isCustomVoting,
             proposal.options
         );

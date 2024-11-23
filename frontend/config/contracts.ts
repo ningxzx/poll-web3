@@ -1,12 +1,13 @@
-export const VOTING_SYSTEM_ADDRESS = '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853';
-export const VOTING_TOKEN_ADDRESS = '0x0165878A594ca255338adfa4d48449f69242Eb8F';
+export const VOTING_SYSTEM_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+export const VOTING_TOKEN_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
 
 export const VOTING_SYSTEM_ABI = [
   {
     inputs: [
       { name: "_title", type: "string" },
       { name: "_description", type: "string" },
-      { name: "_options", type: "string[]" }
+      { name: "_options", type: "string[]" },
+      { name: "_coverImage", type: "string" }
     ],
     name: "createProposal",
     outputs: [],
@@ -40,6 +41,7 @@ export const VOTING_SYSTEM_ABI = [
       { name: "creator", type: "address" },
       { name: "title", type: "string" },
       { name: "description", type: "string" },
+      { name: "coverImage", type: "string" },
       { name: "isCustomVoting", type: "bool" },
       {
         components: [
@@ -57,6 +59,16 @@ export const VOTING_SYSTEM_ABI = [
     inputs: [],
     name: "proposalCount",
     outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "_proposalId", type: "uint256" },
+      { name: "_voter", type: "address" }
+    ],
+    name: "hasVoted",
+    outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
     type: "function"
   }

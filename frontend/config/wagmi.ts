@@ -13,16 +13,10 @@ import {
 
 export const config = getDefaultConfig({
   appName: "vote-for-fun",
-  projectId: "vote-for-fun",
+  projectId: "YOUR_WALLET_CONNECT_PROJECT_ID", // Get from https://cloud.walletconnect.com
   chains: [
-    mainnet,
-    linea,
     lineaSepolia,
-    sepolia,
-    polygon,
-    optimism,
-    arbitrum,
-    base,
     localhost,
-  ] as any,
+  ],
+  ssr: true,
 });

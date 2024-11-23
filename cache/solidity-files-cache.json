@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\hackathon\\CascadeProjects\\windsurf-project\\voting-dapp\\contracts\\VotingSystem.sol": {
-      "lastModificationDate": 1732258874502,
-      "contentHash": "d3e26f1e8523f120152abbc7af6645df",
+      "lastModificationDate": 1732337716938,
+      "contentHash": "1f690517b9418634caa95dc9cd016bfb",
       "sourceName": "contracts/VotingSystem.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -41,8 +41,8 @@
       ]
     },
     "D:\\hackathon\\CascadeProjects\\windsurf-project\\voting-dapp\\contracts\\VotingToken.sol": {
-      "lastModificationDate": 1732265044394,
-      "contentHash": "b00ce1a53becd73d41790db8f9f2939b",
+      "lastModificationDate": 1732270505779,
+      "contentHash": "9ccdb2f097d8ef9d4351661f68a52d8e",
       "sourceName": "contracts/VotingToken.sol",
       "solcConfig": {
         "version": "0.8.20",

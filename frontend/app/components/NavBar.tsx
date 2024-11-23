@@ -108,6 +108,7 @@ export default function NavBar() {
                             className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-300 
                                      hover:bg-purple-500/30 transition-all duration-200 
                                      border border-purple-500/20"
+                            style={{ cursor: 'pointer' }}
                           >
                             {account.displayName}
                           </button>

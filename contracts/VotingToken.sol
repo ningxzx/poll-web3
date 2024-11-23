@@ -30,12 +30,7 @@ contract VotingToken is ERC20, Ownable {
     }
 
     function checkIn() external {
-        // 如果是新用户，先给初始代币
-        if (!hasInitialTokens[msg.sender]) {
-            _mint(msg.sender, INITIAL_TOKEN_AMOUNT);
-            hasInitialTokens[msg.sender] = true;
-        }
-
+        require(hasInitialTokens[msg.sender], "Must get initial tokens first");
         require(
             block.timestamp >= lastCheckIn[msg.sender] + 1 days ||
                 lastCheckIn[msg.sender] == 0,

@@ -25,7 +25,7 @@ export function useInitialTokens() {
           address: VOTING_TOKEN_ADDRESS,
           abi: VOTING_TOKEN_ABI,
           functionName: "getInitialTokens",
-        });
+        } as any);
 
         if (hash) {
           toast.success("Welcome! You received 100 initial tokens!");

@@ -50,7 +50,7 @@ export interface VotingSystemInterface extends Interface {
 
   encodeFunctionData(
     functionFragment: "createProposal",
-    values: [string, string, string[]]
+    values: [string, string, string[], string]
   ): string;
   encodeFunctionData(
     functionFragment: "evaluateProposal",
@@ -214,7 +214,12 @@ export interface VotingSystem extends BaseContract {
   ): Promise<this>;
 
   createProposal: TypedContractMethod<
-    [_title: string, _description: string, _options: string[]],
+    [
+      _title: string,
+      _description: string,
+      _options: string[],
+      _coverImage: string
+    ],
     [void],
     "nonpayable"
   >;
@@ -228,10 +233,18 @@ export interface VotingSystem extends BaseContract {
   getProposalDetails: TypedContractMethod<
     [_proposalId: BigNumberish],
     [
-      [string, string, string, boolean, VotingSystem.OptionStructOutput[]] & {
+      [
+        string,
+        string,
+        string,
+        string,
+        boolean,
+        VotingSystem.OptionStructOutput[]
+      ] & {
         creator: string;
         title: string;
         description: string;
+        coverImage: string;
         isCustomVoting: boolean;
         options: VotingSystem.OptionStructOutput[];
       }
@@ -244,10 +257,11 @@ export interface VotingSystem extends BaseContract {
   proposals: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [string, string, string, boolean, boolean] & {
+      [string, string, string, string, boolean, boolean] & {
         creator: string;
         title: string;
         description: string;
+        coverImage: string;
         exists: boolean;
         isCustomVoting: boolean;
       }
@@ -270,7 +284,12 @@ export interface VotingSystem extends BaseContract {
   getFunction(
     nameOrSignature: "createProposal"
   ): TypedContractMethod<
-    [_title: string, _description: string, _options: string[]],
+    [
+      _title: string,
+      _description: string,
+      _options: string[],
+      _coverImage: string
+    ],
     [void],
     "nonpayable"
   >;
@@ -286,10 +305,18 @@ export interface VotingSystem extends BaseContract {
   ): TypedContractMethod<
     [_proposalId: BigNumberish],
     [
-      [string, string, string, boolean, VotingSystem.OptionStructOutput[]] & {
+      [
+        string,
+        string,
+        string,
+        string,
+        boolean,
+        VotingSystem.OptionStructOutput[]
+      ] & {
         creator: string;
         title: string;
         description: string;
+        coverImage: string;
         isCustomVoting: boolean;
         options: VotingSystem.OptionStructOutput[];
       }
@@ -304,10 +331,11 @@ export interface VotingSystem extends BaseContract {
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [string, string, string, boolean, boolean] & {
+      [string, string, string, string, boolean, boolean] & {
         creator: string;
         title: string;
         description: string;
+        coverImage: string;
         exists: boolean;
         isCustomVoting: boolean;
       }
