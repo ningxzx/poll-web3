@@ -17,7 +17,7 @@ const config: HardhatUserConfig = {
     lineaSepolia: {
       url: `https://linea-sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 59140
+      chainId: 59141
     }
   },
   paths: {
