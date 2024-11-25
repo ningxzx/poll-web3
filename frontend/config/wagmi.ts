@@ -13,7 +13,7 @@ import {
 
 export const config = getDefaultConfig({
   appName: "vote-for-fun",
-  projectId: "YOUR_WALLET_CONNECT_PROJECT_ID", // Get from https://cloud.walletconnect.com
+  projectId: "7d8f3e8a7f8c4b3f9b2a1d5e6c4b3f9b", // Get from https://cloud.walletconnect.com
   chains: [
     lineaSepolia,
     localhost,
