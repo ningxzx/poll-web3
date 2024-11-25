@@ -1,23 +1,15 @@
-import { getDefaultWallets } from '@rainbow-me/rainbowkit';
-import { configureChains, createConfig } from 'wagmi';
-import { hardhat, sepolia } from 'wagmi/chains';
-import { publicProvider } from 'wagmi/providers/public';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import {
+  lineaSepolia,
+  localhost,
+} from 'wagmi/chains';
 
-const { chains, publicClient } = configureChains(
-  [hardhat, sepolia],
-  [publicProvider()]
-);
-
-const { connectors } = getDefaultWallets({
+export const config = getDefaultConfig({
   appName: 'Voting DApp',
-  projectId: 'YOUR_PROJECT_ID', // Get this from WalletConnect Cloud
-  chains,
+  projectId: '7d8f3e8a7f8c4b3f9b2a1d5e6c4b3f9b',
+  chains: [
+    lineaSepolia,
+    localhost,
+  ],
+  ssr: true,
 });
-
-export const wagmiConfig = createConfig({
-  autoConnect: true,
-  connectors,
-  publicClient,
-});
-
-export { chains };
