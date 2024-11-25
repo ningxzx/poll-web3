@@ -1,11 +1,13 @@
 {
   "name": "frontend",
   "version": "1.0.0",
+  "private": true,
   "main": "index.js",
   "scripts": {
-    "dev": "next dev --turbopack --port 9216",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 9216"
+    "start": "next start",
+    "lint": "next lint"
   },
   "keywords": [],
   "author": "",
