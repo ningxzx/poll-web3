@@ -8,6 +8,11 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  images: {
+    domains: [
+      'gateway.pinata.cloud',  // 添加 IPFS 网关域名
+    ],
+  },
 }
 
 module.exports = nextConfig

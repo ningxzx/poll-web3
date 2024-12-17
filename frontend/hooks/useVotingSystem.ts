@@ -128,8 +128,8 @@ export function useVotingSystem() {
           creator: proposal[0],
           title: proposal[1],
           description: proposal[2],
-          isCustomVoting: proposal[3],
-          coverImage: proposal[4],
+          coverImage: proposal[3],
+          isCustomVoting: proposal[4],
           options: proposal[5].map((opt: any) => ({
             text: opt.text,
             votes: opt.votes,

@@ -11,6 +11,12 @@ export const uploadToIPFS = async (
   file: File,
 ): Promise<string> => {
   try {
+    console.log('Starting IPFS upload:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -22,14 +28,28 @@ export const uploadToIPFS = async (
       body: formData,
     });
 
+    console.log('Pinata response status:', res.status);
+
     if (!res.ok) {
-      throw new Error("Failed to upload to IPFS");
+      const errorData = await res.json();
+      console.error('Pinata error:', errorData);
+      throw new Error(errorData.message || "上传到 IPFS 失败");
     }
 
     const data = await res.json();
-    return `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
+    console.log('Pinata success response:', data);
+    
+    if (!data.IpfsHash) {
+      throw new Error("IPFS 响应数据无效");
+    }
+
+    // 构建完整的 IPFS URL
+    const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
+    console.log('Generated IPFS URL:', ipfsUrl);
+
+    return ipfsUrl;
   } catch (error) {
-    console.error("Error uploading to IPFS:", error);
+    console.error('IPFS upload error:', error);
     throw error;
   }
 };
@@ -41,5 +61,27 @@ export const uploadToIPFS = async (
  */
 export const getIPFSUrl = (url: string): string => {
   if (!url) return "";
+  
+  // 如果已经是完整的 URL，直接返回
+  if (url.startsWith('http')) {
+    return url;
+  }
+  
+  // 如果是 IPFS hash，添加网关前缀
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+  }
+  
   return url;
+};
+
+// 添加 URL 验证函数
+export const isValidImageUrl = async (url: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    const contentType = response.headers.get('content-type');
+    return contentType?.startsWith('image/') ?? false;
+  } catch {
+    return false;
+  }
 };

@@ -37,6 +37,7 @@ export interface VotingTokenInterface extends Interface {
       | "checkIn"
       | "decimals"
       | "getInitialTokens"
+      | "getTimeUntilNextCheckIn"
       | "hasInitialTokens"
       | "lastCheckIn"
       | "mint"
@@ -96,6 +97,10 @@ export interface VotingTokenInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getInitialTokens",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getTimeUntilNextCheckIn",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "hasInitialTokens",
@@ -180,6 +185,10 @@ export interface VotingTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getInitialTokens",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getTimeUntilNextCheckIn",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -355,6 +364,12 @@ export interface VotingToken extends BaseContract {
 
   getInitialTokens: TypedContractMethod<[], [void], "nonpayable">;
 
+  getTimeUntilNextCheckIn: TypedContractMethod<
+    [user: AddressLike],
+    [bigint],
+    "view"
+  >;
+
   hasInitialTokens: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   lastCheckIn: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
@@ -464,6 +479,9 @@ export interface VotingToken extends BaseContract {
   getFunction(
     nameOrSignature: "getInitialTokens"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "getTimeUntilNextCheckIn"
+  ): TypedContractMethod<[user: AddressLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "hasInitialTokens"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;

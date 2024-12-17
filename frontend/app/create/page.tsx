@@ -6,9 +6,16 @@ import { useVotingSystem } from "../../hooks/useVotingSystem";
 import { useAccount } from "wagmi";
 import BackButton from "../components/BackButton";
 import { message, Image } from "antd";
+import { uploadToIPFS } from "@/utils/ipfs";
+import ImagePreview from "../components/ImagePreview";
 
 export default function CreateProposal() {
   const router = useRouter();
+  const { isConnected } = useAccount();
+  
+  // 将 message hook 移到组件内部
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -20,17 +27,17 @@ export default function CreateProposal() {
   const [error, setError] = useState<string>("");
   const [previewImage, setPreviewImage] = useState<string>("");
   const { createProposal } = useVotingSystem();
-  const { isConnected } = useAccount();
 
-  // 检查钱包连接状态，如果未连接则跳转到首页
   useEffect(() => {
-    if (!isConnected) {
-      message.warning("Please connect your wallet first");
-      router.replace("/");
+    if (!isConnected && typeof window !== "undefined") {
+      // 使用 setTimeout 将消息显示移到下一个事件循环
+      setTimeout(() => {
+        messageApi.warning("Please connect your wallet first");
+        router.replace("/");
+      }, 0);
     }
-  }, [isConnected, router]);
+  }, [isConnected, router, messageApi]);
 
-  // 如果未连接钱包，不渲染页面内容
   if (!isConnected) {
     return null;
   }
@@ -46,25 +53,118 @@ export default function CreateProposal() {
     setError(""); // 清除之前的错误
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        message.error("Image size should be less than 5MB");
+    if (!file) return;
+
+    try {
+      // 文件类型检查
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        messageApi.error('Only JPG, PNG, GIF and WebP formats are supported');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setPreviewImage(base64String);
+      // 文件大小检查
+      if (file.size > 5 * 1024 * 1024) {
+        messageApi.error('Image size cannot exceed 5MB');
+        return;
+      }
+
+      // 显示上传中状态
+      const loadingMessage = messageApi.loading('Uploading image...', 0);
+
+      try {
+        const ipfsUrl = await uploadToIPFS(file);
+        console.log('IPFS upload successful:', ipfsUrl);
+
+        setPreviewImage(ipfsUrl);
         setFormData(prev => ({
           ...prev,
-          coverImage: base64String
+          coverImage: ipfsUrl
         }));
-      };
-      reader.readAsDataURL(file);
+
+        loadingMessage();
+        messageApi.success('Image uploaded successfully!');
+      } catch (ipfsError) {
+        console.error('IPFS upload error:', ipfsError);
+        loadingMessage();
+        messageApi.error('Failed to upload image to IPFS, please try again');
+      }
+    } catch (error) {
+      console.error('Image processing error:', error);
+      messageApi.error('Image processing failed, please try again');
     }
+  };
+
+  // 添加图片压缩函数
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // 设置最大尺寸
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 600;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            'image/jpeg',
+            0.7  // 压缩质量
+          );
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Base64 转换函数
+  const convertToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   };
 
   const handleOptionChange = (index: number, value: string) => {
@@ -83,86 +183,69 @@ export default function CreateProposal() {
     setError("");
 
     try {
-      // Validate form
+      // 基本验证
       if (!formData.title.trim()) {
-        setError("Title is required");
-        setIsSubmitting(false);
+        setError("标题不能为空");
         return;
       }
 
-      // Validate title length
-      if (formData.title.trim().length < 10) {
-        setError("Title must be at least 10 characters long");
-        setIsSubmitting(false);
-        return;
+      // 验证图片大小
+      if (formData.coverImage) {
+        const base64Size = formData.coverImage.length * 0.75; // 估算base64大小
+        if (base64Size > 5 * 1024 * 1024) {
+          setError("图片大小超过限制");
+          return;
+        }
       }
 
-      // Get options based on voting type
-      const options = useCustomOptions ? formData.options.filter(Boolean) : [];
-
-      // Validate custom options
-      if (useCustomOptions && options.length < 2) {
-        setError("Please provide at least 2 options for custom voting");
-        setIsSubmitting(false);
-        return;
-      }
-
-      console.log("Submitting proposal:", {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        options,
-        coverImage: formData.coverImage,
-      });
-
-      // Create the proposal
+      // 创建提案
       const receipt = await createProposal(
         formData.title.trim(),
         formData.description.trim(),
-        options,
+        formData.options.filter(Boolean),
         formData.coverImage
       );
 
-      console.log("Proposal created with receipt:", receipt);
-      message.success("Proposal created successfully!");
-      
-      // Use router.replace instead of router.push to avoid the render error
+      messageApi.success("提案创建成功！");
       router.replace("/");
     } catch (error: any) {
-      console.error("Error creating proposal:", error);
-      // Handle user rejection
-      if (error.message.includes("User denied transaction")) {
-        message.info("Transaction cancelled by user");
-      } else if (error.message.includes("title already exists")) {
-        message.error("A proposal with this title already exists");
-        setError("Please choose a different title for your proposal");
-      } else {
-        // Handle other errors
-        setError(error.message || "Failed to create proposal. Please try again.");
-        message.error("Failed to create proposal");
-      }
+      console.error("创建提案失败:", error);
+      setError(error.message || "创建提案失败，请重试");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // 添加删除图片的处理函数
+  const handleDeleteImage = () => {
+    setPreviewImage('');
+    setFormData(prev => ({
+      ...prev,
+      coverImage: ''
+    }));
+    messageApi.success('Image removed');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-      <nav className="fixed top-0 w-full z-50 bg-gray-900/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4 mb-6">
+      {/* 添加 message 上下文 */}
+      {contextHolder}
+      
+      <nav className="glass-effect fixed top-0 w-full z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex justify-between items-center relative">
+            <div className="flex items-center space-x-4">
               <BackButton />
             </div>
+            <h1 className=" absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-8">
+              Create New Proposal
+            </h1>
           </div>
         </div>
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 pt-24 pb-12">
         <div className="bg-gray-800/50 backdrop-blur-md p-8 rounded-xl border border-gray-700">
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-8">
-            Create New Proposal
-          </h1>
-
           {error && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/20 rounded-lg text-red-300">
               {error}
@@ -213,74 +296,80 @@ export default function CreateProposal() {
             </div>
 
             {/* Cover Image Upload */}
-            <div>
-              <label
-                htmlFor="coverImage"
-                className="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Cover Image (Optional)
-              </label>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label
-                    htmlFor="coverImage"
-                    className="flex items-center justify-center w-full h-32 px-4 transition bg-gray-700 border-2 border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-purple-500/50 focus:outline-none"
-                  >
-                    <div className="flex flex-col items-center space-y-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-sm text-gray-400">
-                        Click to upload image
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      id="coverImage"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
-                </div>
-                {previewImage && (
-                  <div className="relative w-32 h-32">
-                    <Image
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                {previewImage ? (
+                  <div className="w-1/3 space-y-2">
+                    <ImagePreview
                       src={previewImage}
                       alt="Cover preview"
-                      width={128}
-                      height={128}
-                      className="object-cover rounded-lg"
-                      preview={{
-                        mask: (
-                          <div className="flex flex-col items-center justify-center space-y-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-xs">Preview</span>
-                          </div>
-                        ),
-                      }}
+                      className="w-full h-32 max-h-32 object-cover rounded-lg"
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPreviewImage("");
-                        setFormData(prev => ({ ...prev, coverImage: "" }));
-                      }}
-                      className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600"
+                    <div className="flex gap-2">
+                      <label
+                        htmlFor="coverImage"
+                        className="flex-1 px-3 py-1 text-xs text-center bg-purple-500 hover:bg-purple-600 rounded cursor-pointer"
+                      >
+                        Replace
+                        <input
+                          type="file"
+                          id="coverImage"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                      <button
+                        onClick={handleDeleteImage}
+                        className="flex-1 px-3 py-1 text-xs text-center bg-red-500 hover:bg-red-600 rounded"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-1/3">
+                    <label
+                      htmlFor="coverImage"
+                      className="flex items-center justify-center h-32 px-4 transition bg-gray-700 border-2 border-gray-600 border-dashed rounded-lg appearance-none cursor-pointer hover:border-purple-500/50 focus:outline-none"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                      <div className="flex flex-col items-center space-y-2">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-6 h-6 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-sm text-gray-400">
+                          Upload image
+                        </span>
+                      </div>
+                      <input
+                        type="file"
+                        id="coverImage"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
                   </div>
                 )}
+                <div className="flex-1">
+                  <p className="text-sm text-gray-400 space-y-2">
+                    <p>Max file size: 5MB</p>
+                    <p>Supported formats: JPG, PNG, GIF, WebP</p>
+                    <p>Recommended size: 800x600px</p>
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-sm text-gray-400">
-                Max file size: 5MB. Recommended size: 800x600px
-              </p>
             </div>
 
             <div>
@@ -309,7 +398,9 @@ export default function CreateProposal() {
                       key={index}
                       type="text"
                       value={option}
-                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      onChange={(e) =>
+                        handleOptionChange(index, e.target.value)
+                      }
                       placeholder={`Option ${index + 1}`}
                       className="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white 
                                focus:ring-2 focus:ring-purple-500 focus:border-transparent

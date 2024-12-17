@@ -9,22 +9,19 @@ import {
 } from "wagmi";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { type Address, type Hash, parseAbiItem } from "viem";
 import { VOTING_TOKEN_ADDRESS, VOTING_TOKEN_ABI } from "../config/contracts";
 
-const DAILY_CHECKIN_REWARD = 10; // Daily check-in reward amount
-const ONE_DAY = 24 * 60 * 60 * 1000;
+const DAILY_CHECKIN_REWARD = 10;
+const ONE_DAY_SECONDS = 24 * 60 * 60;
 
 export function useCheckIn() {
   const { address } = useAccount();
   const [canCheckIn, setCanCheckIn] = useState(false);
-  const [lastCheckInTime, setLastCheckInTime] = useState<number>(0);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const { writeContractAsync } = useWriteContract();
 
-  // Get the last check-in time
-  const { data: lastCheckIn, refetch, isLoading } = useReadContract({
+  // 获取上次签到时间
+  const { data: lastCheckIn, refetch } = useReadContract({
     address: VOTING_TOKEN_ADDRESS,
     abi: VOTING_TOKEN_ABI,
     functionName: "lastCheckIn",
@@ -34,57 +31,74 @@ export function useCheckIn() {
     },
   });
 
-  const checkCanCheckIn = () => {
-    if (!lastCheckIn) return;
 
-    const lastCheckInDate = new Date(Number(lastCheckIn) * 1000);
-    const now = new Date();
-    const timeDiff = now.getTime() - lastCheckInDate.getTime();
-    setCanCheckIn(timeDiff >= ONE_DAY);
-    setLastCheckInTime(Number(lastCheckIn));
-    setIsInitialized(true);
-  };
+  // 检查是否可以签到
+  useEffect(() => {
+    const checkCanCheckIn = async () => {
+      if (!address || lastCheckIn === undefined) return;
 
+      const lastCheckInValue = Number(lastCheckIn);
+      console.log('Last check-in value:', lastCheckInValue);
+
+      // 如果从未签到过（lastCheckIn 为 0），允许签到
+      if (BigInt(lastCheckInValue) === BigInt(0)) {
+        console.log('First time check-in');
+        setCanCheckIn(true);
+        return;
+      }
+
+      // 获取当前区块时间
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeSinceLastCheckIn = currentTime - lastCheckInValue;
+
+      console.log('Check-in debug:', {
+        lastCheckInTime: lastCheckInValue,
+        currentTime,
+        timeSinceLastCheckIn,
+        canCheckIn: timeSinceLastCheckIn >= ONE_DAY_SECONDS
+      });
+
+      setCanCheckIn(timeSinceLastCheckIn >= ONE_DAY_SECONDS);
+    };
+
+    checkCanCheckIn();
+  }, [address, lastCheckIn]);
+
+  // 签到函数
   const handleCheckIn = async () => {
     if (!address || !canCheckIn) {
-      toast.error("Check-in not available");
+      toast.error("签到不可用");
       return;
     }
 
     try {
       setIsCheckingIn(true);
+      
+      // 使用预估的 gas 配置
       const hash = await writeContractAsync({
-        address: VOTING_TOKEN_ADDRESS,
-        abi: VOTING_TOKEN_ABI,
+        address: VOTING_TOKEN_ADDRESS!,
+        abi: VOTING_TOKEN_ABI!,
         functionName: "checkIn",
-      } as any);
+      });
 
       if (hash) {
-        toast.success("Check-in successful!");
+        toast.success("签到成功！");
         await refetch();
-        // 触发 balance 更新
         window.dispatchEvent(new Event('REFRESH_BALANCE'));
         setCanCheckIn(false);
       }
     } catch (error: any) {
-      console.error("Check-in error:", error);
-      toast.error("Check-in failed");
+      console.error("签到失败:", error);
+      toast.error(error?.message || "签到失败");
     } finally {
       setIsCheckingIn(false);
     }
   };
 
-  useEffect(() => {
-    checkCanCheckIn();
-  }, [lastCheckIn]);
-
   return {
     canCheckIn,
-    isLoading,
-    lastCheckInTime,
     checkIn: handleCheckIn,
-    isInitialized,
-    dailyReward: DAILY_CHECKIN_REWARD,
-    isCheckingIn
+    isCheckingIn,
+    dailyReward: DAILY_CHECKIN_REWARD
   };
 }

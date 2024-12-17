@@ -31,14 +31,35 @@ contract VotingToken is ERC20, Ownable {
 
     function checkIn() external {
         require(hasInitialTokens[msg.sender], "Must get initial tokens first");
-        require(
-            block.timestamp >= lastCheckIn[msg.sender] + 1 days ||
-                lastCheckIn[msg.sender] == 0,
-            "Already checked in today"
-        );
-
-        lastCheckIn[msg.sender] = block.timestamp;
+        
+        // 获取当前时间戳
+        uint256 currentTime = block.timestamp;
+        uint256 userLastCheckIn = lastCheckIn[msg.sender];
+        
+        // 如果是首次签到
+        if (userLastCheckIn == 0) {
+            lastCheckIn[msg.sender] = currentTime;
+            _mint(msg.sender, DAILY_CHECKIN_REWARD);
+            return;
+        }
+        
+        // 计算上次签到时间到现在经过了多少完整的天数
+        uint256 daysSinceLastCheckIn = (currentTime - userLastCheckIn) / 1 days;
+        
+        require(daysSinceLastCheckIn >= 1, "Already checked in today");
+        
+        lastCheckIn[msg.sender] = currentTime;
         _mint(msg.sender, DAILY_CHECKIN_REWARD);
+    }
+
+    // 添加一个查询函数，方便调试
+    function getTimeUntilNextCheckIn(address user) external view returns (uint256) {
+        if (lastCheckIn[user] == 0) return 0;
+        
+        uint256 nextCheckInTime = lastCheckIn[user] + 1 days;
+        if (block.timestamp >= nextCheckInTime) return 0;
+        
+        return nextCheckInTime - block.timestamp;
     }
 
     function mint(address to, uint256 amount) external onlyOwner {
