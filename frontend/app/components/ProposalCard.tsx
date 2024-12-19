@@ -3,8 +3,8 @@
 import { Proposal } from "@/types";
 import { message } from "antd";
 import Image from "next/image";
-import { useState } from 'react';
-import { Modal } from 'antd';
+import { useState } from "react";
+import { Modal } from "antd";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -67,7 +67,7 @@ export default function ProposalCard({
     return colorMap[color as keyof typeof colorMap];
   };
 
-  console.log(proposal.coverImage)
+  console.log(proposal.coverImage);
 
   return (
     <div className="relative p-4 rounded-lg bg-gray-800/40 hover:bg-gray-800 backdrop-blur-md border border-white/10 hover:border-white/40 shadow-lg hover:shadow-2xl transition-all duration-300 group">
@@ -85,20 +85,45 @@ export default function ProposalCard({
         </div>
       )}
 
-      <div className="flex gap-4">
+      <div>
         {/* Left content */}
         <div className="flex-1">
-          <div className="min-h-[120px] mb-4">
-            <h3 className="text-lg font-semibold mb-2 text-white/90 group-hover:text-white">
-              {proposal.title}
-            </h3>
-            <p className={`text-sm min-h-[48px] ${
-              proposal.description
-                ? "text-white/80 group-hover:text-white"
-                : "text-white/20 group-hover:text-white/40"
-            }`}>
-              {proposal.description || "No description provided"}
-            </p>
+          <div className="flex gap-4 justify-between">
+            <div className="min-h-[120px] mb-4">
+              <h3 className="text-lg font-semibold mb-2 text-white/90 group-hover:text-white">
+                {proposal.title}
+              </h3>
+              <p
+                className={`text-sm min-h-[48px] ${
+                  proposal.description
+                    ? "text-white/80 group-hover:text-white"
+                    : "text-white/20 group-hover:text-white/40"
+                }`}
+              >
+                {proposal.description || "No description provided"}
+              </p>
+            </div>
+            {/* Right content - Image */}
+            {proposal.coverImage && (
+              <div className="flex-none fit-content">
+                <div
+                  className="relative aspect-square w-[120px] overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setIsImageModalVisible(true)}
+                >
+                  <Image
+                    src={proposal.coverImage}
+                    alt={proposal.title}
+                    fill
+                    className="object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Progress Bar */}
@@ -120,85 +145,64 @@ export default function ProposalCard({
                 ) : null;
               })}
           </div>
+        </div>
+        {/* Options Grid */}
+        <div className="grid grid-cols-1 gap-4">
+          <div className="flex flex-row gap-2">
+            {proposal.options.map((option, index) => {
+              const isVotedOption =
+                hasVotedOnThis && currentVote.optionIndex === index;
+              const isDisabled = hasVotedOnThis || !isConnected;
+              const color = getOptionColor(index, proposal.options.length);
+              const colorClasses = getColorClasses(color);
+              const voteCount = Number(option.votes);
+              const percentage =
+                totalVotes === 0 ? 0 : (voteCount / totalVotes) * 100;
 
-          {/* Options Grid */}
-          <div className="grid grid-cols-1 gap-4">
-            <div className="flex flex-row gap-2">
-              {proposal.options.map((option, index) => {
-                const isVotedOption =
-                  hasVotedOnThis && currentVote.optionIndex === index;
-                const isDisabled = hasVotedOnThis || !isConnected;
-                const color = getOptionColor(index, proposal.options.length);
-                const colorClasses = getColorClasses(color);
-                const voteCount = Number(option.votes);
-                const percentage =
-                  totalVotes === 0 ? 0 : (voteCount / totalVotes) * 100;
-
-                return (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      if (!isConnected && typeof window !== "undefined") {
-                        message.warning("Please connect your wallet to vote");
-                        return;
-                      }
-                      if (!isDisabled) {
-                        onVote(proposal.id, index);
-                      }
-                    }}
-                    disabled={isDisabled}
-                    className={`flex-1 p-3 rounded-lg border transition-all duration-300 ${
-                      isVotedOption ? colorClasses.voted : colorClasses.button
-                    } ${
-                      isVotedOption ? colorClasses.border : "border-transparent"
-                    } ${
-                      isDisabled && !isVotedOption
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    } backdrop-blur-sm group-hover:backdrop-blur-none`}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <span className={`text-sm font-medium ${colorClasses.text}`}>
-                        {option.text}
-                      </span>
-                      <span className="text-xs text-gray-400 group-hover:text-gray-200">
-                        {hasVotedOnThis ? (
-                          <>
-                            {voteCount} votes ({percentage.toFixed(1)}%)
-                          </>
-                        ) : (
-                          <span className="text-gray-500">? votes</span>
-                        )}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (!isConnected && typeof window !== "undefined") {
+                      message.warning("Please connect your wallet to vote");
+                      return;
+                    }
+                    if (!isDisabled) {
+                      onVote(proposal.id, index);
+                    }
+                  }}
+                  disabled={isDisabled}
+                  className={`flex-1 p-3 rounded-lg border transition-all duration-300 ${
+                    isVotedOption ? colorClasses.voted : colorClasses.button
+                  } ${
+                    isVotedOption ? colorClasses.border : "border-transparent"
+                  } ${
+                    isDisabled && !isVotedOption
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  } backdrop-blur-sm group-hover:backdrop-blur-none`}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span
+                      className={`text-sm font-medium ${colorClasses.text}`}
+                    >
+                      {option.text}
+                    </span>
+                    <span className="text-xs text-gray-400 group-hover:text-gray-200">
+                      {hasVotedOnThis ? (
+                        <>
+                          {voteCount} votes ({percentage.toFixed(1)}%)
+                        </>
+                      ) : (
+                        <span className="text-gray-500">? votes</span>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-
-        {/* Right content - Image */}
-        {proposal.coverImage && (
-          <div className="w-1/3 flex-shrink-0">
-            <div 
-              className="relative aspect-square w-full overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setIsImageModalVisible(true)}
-            >
-              <Image
-                src={proposal.coverImage}
-                alt={proposal.title}
-                fill
-                className="object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Image Preview Modal */}
@@ -211,7 +215,7 @@ export default function ProposalCard({
         className="image-preview-modal"
       >
         <Image
-          src={proposal.coverImage || ''}
+          src={proposal.coverImage || ""}
           alt={proposal.title}
           width={800}
           height={600}
